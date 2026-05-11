@@ -1,0 +1,10 @@
+* text=auto
+
+# Shell 脚本必须 LF，否则 Windows checkout 后无法在 bash/Linux 下执行
+*.sh text eol=lf
+
+# YAML / Dockerfile 也用 LF 防止部署到 NAS 上行尾错乱
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
+.env.example text eol=lf
