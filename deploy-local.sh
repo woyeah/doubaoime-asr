@@ -105,9 +105,11 @@ ssh -o StrictHostKeyChecking=no "$NAS_USER@$NAS_HOST" \
   "printf 'REGISTRY=%s\nIMAGE_TAG=%s\n' '$REGISTRY' '$IMAGE_TAG' > $NAS_DIR/.env"
 
 # --- NAS 拉镜像并重启 ---
+# Synology sshd 非交互 shell 不加载 /etc/profile，docker 不在 PATH 里，显式补
 echo "==> Pulling image and restarting container on NAS..."
 ssh -t -o StrictHostKeyChecking=no "$NAS_USER@$NAS_HOST" \
-  "cd $NAS_DIR && \
+  "export PATH=/usr/local/bin:/usr/bin:/bin:\$PATH && \
+   cd $NAS_DIR && \
    docker compose -f docker-compose.prod.yml pull && \
    docker compose -f docker-compose.prod.yml up -d"
 
