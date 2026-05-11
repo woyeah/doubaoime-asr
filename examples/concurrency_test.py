@@ -33,12 +33,16 @@ from doubaoime_asr.asr import ASRError
 SAMPLE_AUDIO_URL = (
     "https://github.com/liangstein/Chinese-speech-to-text/raw/refs/heads/master/1.wav"
 )
+LOCAL_SAMPLE = Path(__file__).resolve().parent.parent / "samples" / "test.wav"
 
 
 def load_audio(path: Optional[str]) -> bytes:
     if path and Path(path).exists():
         return Path(path).read_bytes()
-    print(f"未指定 --audio 或文件不存在，从 GitHub 拉公开样本…", flush=True)
+    if LOCAL_SAMPLE.exists():
+        print(f"使用 repo 内样本 {LOCAL_SAMPLE} …", flush=True)
+        return LOCAL_SAMPLE.read_bytes()
+    print(f"未指定 --audio 且 repo 内无 samples/test.wav，从 GitHub 拉公开样本…", flush=True)
     return requests.get(SAMPLE_AUDIO_URL, timeout=30).content
 
 

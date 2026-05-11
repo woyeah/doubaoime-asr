@@ -4,6 +4,8 @@
 演示 transcribe 和 transcribe_stream 两个函数的用法
 """
 import asyncio
+from pathlib import Path
+
 import requests
 
 from doubaoime_asr import transcribe, transcribe_stream, ASRConfig, ResponseType
@@ -69,11 +71,15 @@ async def demo_transcribe_stream(audio_data: bytes, config: ASRConfig):
 
 def get_audio_data() -> bytes:
     """
-    随便从 Github 上找的一个带有中文语音的音频文件
+    优先用 repo 内 samples/test.wav（离线 / 国内 NAS 不挂代理也能跑）；
+    没找到再回退到 Github 公开样本
     """
+    local = Path(__file__).resolve().parent.parent / "samples" / "test.wav"
+    if local.exists():
+        return local.read_bytes()
+
     audio_url = 'https://github.com/liangstein/Chinese-speech-to-text/raw/refs/heads/master/1.wav'
-    audio_data = requests.get(audio_url).content
-    return audio_data
+    return requests.get(audio_url).content
 
 
 async def main():

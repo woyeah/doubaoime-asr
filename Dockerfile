@@ -11,6 +11,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY doubaoime_asr ./doubaoime_asr
 COPY examples ./examples
+COPY samples ./samples
 
 RUN pip install --no-cache-dir -e .
 

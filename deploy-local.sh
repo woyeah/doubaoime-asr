@@ -60,7 +60,7 @@ needs_build() {
     return 0
   fi
 
-  if ! git diff --quiet "$prev_commit" HEAD -- doubaoime_asr/ Dockerfile pyproject.toml; then
+  if ! git diff --quiet "$prev_commit" HEAD -- doubaoime_asr/ examples/ samples/ Dockerfile pyproject.toml; then
     return 0
   fi
   return 1
