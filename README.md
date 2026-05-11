@@ -244,18 +244,19 @@ docker compose run --rm doubao-asr \
 
 ## 部署到 NAS
 
-构建只在开发机上做，NAS **不需要 git**，只拉镜像 + 启动容器：
+构建只在开发机做，NAS 只拉镜像 + 启动容器；源码经 git pull 同步到 NAS，方便 ssh 进去手动看/跑：
 
 ```
 [本机] build → push → [NAS registry] ──pull──> [NAS docker]
-[本机] scp docker-compose.prod.yml + .env(REGISTRY,IMAGE_TAG) → [NAS_DIR]
-[本机] ssh NAS: docker compose pull && up -d
+[本机] ssh NAS: git fetch + reset --hard origin/main   # 同步源码 + compose
+                 写 .env(REGISTRY,IMAGE_TAG)            # 部署期变量不入 git
+                 docker compose pull && up -d
 ```
 
 ### 首次准备
 
 1. 本地：`cp .env.example .env`，按你的 NAS 环境填值（`.env` 已在 `.gitignore` 不会被提交）
-2. NAS：手动 `git clone` 仓库到 `.env` 里的 `NAS_DIR`（比如 `/volume1/docker/github/doubaoime-asr`）—— 之后脚本只负责 scp + ssh，不再碰 git
+2. NAS：手动 `git clone` 仓库到 `.env` 里的 `NAS_DIR`（比如 `/volume1/docker/github/doubaoime-asr`），把 github 凭据（SSH key 或 PAT）配好；之后脚本每次部署会自动 `git fetch + reset --hard origin/main`
 
 `.env` 字段：
 
