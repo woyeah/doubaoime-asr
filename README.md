@@ -221,8 +221,11 @@ docker compose run --rm \
 `examples/concurrency_test.py` 用同一 device_id 并发跑 N 路 ASR，输出成功率、p50/max 延迟、错误明细，用来定位风控/限流拐点：
 
 ```bash
-# 本地
-python examples/concurrency_test.py --n 4 --audio ./test.wav
+# 本地（不传 --audio 默认用 repo 内 samples/test.wav，国内无代理也能跑）
+python examples/concurrency_test.py --n 4
+
+# 自带 wav
+python examples/concurrency_test.py --n 4 --audio ./my.wav
 
 # Docker
 docker compose run --rm doubao-asr \
