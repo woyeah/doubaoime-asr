@@ -5,6 +5,7 @@ description = "豆包输入法 ASR"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "cryptography>=41.0",
     "miniaudio>=1.61",
     "opuslib>=3.0.1",
     "protobuf>=6.33.5",
