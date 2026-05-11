@@ -105,13 +105,14 @@ ssh -o StrictHostKeyChecking=no "$NAS_USER@$NAS_HOST" \
   "printf 'REGISTRY=%s\nIMAGE_TAG=%s\n' '$REGISTRY' '$IMAGE_TAG' > $NAS_DIR/.env"
 
 # --- NAS 拉镜像并重启 ---
-# Synology sshd 非交互 shell 不加载 /etc/profile，docker 不在 PATH 里，显式补
+# Synology 上非 root 用户没有 docker.sock 权限，必须 sudo；
+# 又因为 sshd 非交互 shell 不加载 /etc/profile，docker 不在 PATH 里，sudo 内部要显式补 PATH
 echo "==> Pulling image and restarting container on NAS..."
 ssh -t -o StrictHostKeyChecking=no "$NAS_USER@$NAS_HOST" \
-  "export PATH=/usr/local/bin:/usr/bin:/bin:\$PATH && \
+  "sudo sh -c 'export PATH=/usr/local/bin:/usr/bin:/bin:\$PATH && \
    cd $NAS_DIR && \
    docker compose -f docker-compose.prod.yml pull && \
-   docker compose -f docker-compose.prod.yml up -d"
+   docker compose -f docker-compose.prod.yml up -d'"
 
 # --- 追加 RELEASES.md ---
 RELEASES_FILE="RELEASES.md"
