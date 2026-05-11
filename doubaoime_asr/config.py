@@ -109,6 +109,15 @@ class ASRConfig:
     connect_timeout: float = 10.0
     recv_timeout: float = 10.0
 
+    proxy: Optional[str] = None
+    """
+    WebSocket 代理，例如 "http://127.0.0.1:7890" 或 "socks5://127.0.0.1:1080"
+
+    - None：从环境变量 HTTPS_PROXY / WSS_PROXY 读取（缺省也是直连）
+    - 显式字符串：覆盖环境变量
+    - HTTP 部分（设备注册 / token / wave 握手）始终走 requests，自动读 HTTPS_PROXY
+    """
+
     # 内部状态
     _credentials: Optional[DeviceCredentials] = field(default=None, repr=None)
     _initialized: bool = field(default=False, repr=False)

@@ -13,3 +13,8 @@ wheels/
 doubaoime_v1.1.2_100102018_official
 credentials.json
 hook_*.js
+
+# 部署环境配置（含私网 IP / 凭据，从 .env.example 拷贝）
+.env
+.deploy-state
+data/

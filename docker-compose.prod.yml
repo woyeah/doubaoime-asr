@@ -1,0 +1,14 @@
+services:
+  doubao-asr:
+    image: ${REGISTRY}/doubaoime-asr:${IMAGE_TAG:-latest}
+    container_name: doubao-asr
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+    environment:
+      DOUBAO_CREDENTIAL_PATH: /data/credentials.json
+      PYTHONUNBUFFERED: "1"
+      # HTTPS_PROXY: http://192.168.x.x:7890
+      # HTTP_PROXY: http://192.168.x.x:7890
+      # NO_PROXY: localhost,127.0.0.1
+    command: ["sleep", "infinity"]

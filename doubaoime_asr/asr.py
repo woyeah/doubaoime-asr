@@ -180,6 +180,7 @@ class DoubaoASR:
                 self.config.ws_url,
                 additional_headers=self.config.headers,
                 open_timeout=self.config.connect_timeout,
+                proxy=self.config.proxy,
             ) as ws:
                 # 初始化会话
                 async for resp in self._initialize_session(ws, state):
@@ -250,6 +251,7 @@ class DoubaoASR:
                 self.config.ws_url,
                 additional_headers=self.config.headers,
                 open_timeout=self.config.connect_timeout,
+                proxy=self.config.proxy,
             ) as ws:
                 # 初始化会话
                 async for resp in self._initialize_session(ws, state):
