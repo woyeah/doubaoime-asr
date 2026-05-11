@@ -595,6 +595,7 @@ def _parse_response(data: bytes) -> ASRResponse:
 
     message_type = pb.message_type
     result_json = pb.result_json  # 字段 7: 识别结果 JSON
+    status_code = pb.status_code  # 字段 5: 状态码
     status_message = pb.status_message  # 字段 6: 状态消息
 
     # 根据 message_type 判断响应类型
@@ -608,7 +609,10 @@ def _parse_response(data: bytes) -> ASRResponse:
         return ASRResponse(type=ResponseType.SESSION_FINISHED)
 
     if message_type in ("TaskFailed", "SessionFailed"):
-        return ASRResponse(type=ResponseType.ERROR, error_msg=status_message)
+        return ASRResponse(
+            type=ResponseType.ERROR,
+            error_msg=f"{message_type} status_code={status_code} status_message={status_message!r} result_json={result_json!r}",
+        )
 
     # 识别结果在 result_json 字段（字段 7）
     if not result_json:
