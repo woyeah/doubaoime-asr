@@ -107,10 +107,12 @@ ssh -o StrictHostKeyChecking=no "$NAS_USER@$NAS_HOST" \
 # --- NAS 拉镜像并重启 ---
 # Synology 上非 root 用户没有 docker.sock 权限，必须 sudo；
 # 又因为 sshd 非交互 shell 不加载 /etc/profile，docker 不在 PATH 里，sudo 内部要显式补 PATH
+# data/ 是 compose volume 的宿主端挂载点，docker 不会自动创建，先 mkdir
 echo "==> Pulling image and restarting container on NAS..."
 ssh -t -o StrictHostKeyChecking=no "$NAS_USER@$NAS_HOST" \
   "sudo sh -c 'export PATH=/usr/local/bin:/usr/bin:/bin:\$PATH && \
    cd $NAS_DIR && \
+   mkdir -p data && \
    docker compose -f docker-compose.prod.yml pull && \
    docker compose -f docker-compose.prod.yml up -d'"
 
