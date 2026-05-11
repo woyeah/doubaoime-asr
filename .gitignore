@@ -18,3 +18,6 @@ hook_*.js
 .env
 .deploy-state
 data/
+
+# deploy-local.sh 每次部署追加的本地部署记录（多人 deploy 会冲突）
+RELEASES.md
