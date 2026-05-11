@@ -176,3 +176,106 @@ async def transcribe_realtime(
 ```python
 config = ASRConfig(credential_path="~/.config/doubaoime-asr/credentials.json")
 ```
+
+## 代理
+
+HTTP 部分（设备注册 / token / Wave 握手）走 `requests`，自动读环境变量 `HTTPS_PROXY` / `HTTP_PROXY`。
+
+WebSocket 部分通过 `ASRConfig.proxy` 显式传入，或留空走环境变量（依赖 `websockets>=13.1`）：
+
+```python
+config = ASRConfig(
+    credential_path="./credentials.json",
+    proxy="http://127.0.0.1:7890",   # 或 socks5://127.0.0.1:1080
+)
+```
+
+只设环境变量也行：
+
+```bash
+export HTTPS_PROXY=http://127.0.0.1:7890
+python examples/file_transcribe.py
+```
+
+## Docker
+
+仓库自带 `Dockerfile` 和 `docker-compose.yml`，基础镜像 `python:3.11-slim`，apt 装 `libopus0`、`ffmpeg`。
+
+```bash
+# 构建镜像
+docker compose build
+
+# 跑一个示例（凭据持久化到宿主机 ./data/credentials.json）
+docker compose run --rm doubao-asr python examples/file_transcribe.py
+
+# 走宿主机代理：编辑 docker-compose.yml 取消 HTTPS_PROXY 注释，或临时传入
+docker compose run --rm \
+  -e HTTPS_PROXY=http://host.docker.internal:7890 \
+  doubao-asr python examples/file_transcribe.py
+```
+
+凭据 `credentials.json` 在 `./data/` volume 内，**首次运行后请备份**——丢失等同于重新注册一台虚拟设备，频繁注册同 IP 容易触发风控。
+
+## 并发测试
+
+`examples/concurrency_test.py` 用同一 device_id 并发跑 N 路 ASR，输出成功率、p50/max 延迟、错误明细，用来定位风控/限流拐点：
+
+```bash
+# 本地
+python examples/concurrency_test.py --n 4 --audio ./test.wav
+
+# Docker
+docker compose run --rm doubao-asr \
+  python examples/concurrency_test.py --n 8
+```
+
+推荐序列：`n=1 → 2 → 4 → 8 → 16`，每档跑 3 次取中位数。错误信号速查：
+
+| 错误 | 含义 |
+|------|------|
+| `websockets.ConnectionClosed 1008 / 1011` | 服务端主动断，疑似风控 |
+| `asyncio.TimeoutError` | 排队 / 限流超时 |
+| `ASRError` 含 "token" / "auth" | device 凭据被回收 |
+
+服务端并发上限**无文档**，必须自己实测。一般经验：单 device 同时 2–4 路稳定；8+ 路开始出现拒连；多 device 池化 = 自动化滥用红线，**不建议用于生产**。
+
+## 部署到 NAS
+
+构建只在开发机上做，NAS **不需要 git**，只拉镜像 + 启动容器：
+
+```
+[本机] build → push → [NAS registry] ──pull──> [NAS docker]
+[本机] scp docker-compose.prod.yml + .env(REGISTRY,IMAGE_TAG) → [NAS_DIR]
+[本机] ssh NAS: docker compose pull && up -d
+```
+
+### 首次准备
+
+1. 本地：`cp .env.example .env`，按你的 NAS 环境填值（`.env` 已在 `.gitignore` 不会被提交）
+2. NAS：手动 `git clone` 仓库到 `.env` 里的 `NAS_DIR`（比如 `/volume1/docker/github/doubaoime-asr`）—— 之后脚本只负责 scp + ssh，不再碰 git
+
+`.env` 字段：
+
+| 字段 | 例子 | 说明 |
+|------|------|------|
+| `REGISTRY` | `192.168.x.x:5500` | NAS 私有 Docker registry |
+| `NAS_USER` | `your_user` | NAS SSH 用户 |
+| `NAS_HOST` | `192.168.x.x` | NAS IP |
+| `NAS_DIR` | `/volume1/docker/github/doubaoime-asr` | NAS 上的项目目录 |
+
+### 常用命令
+
+```bash
+# 完整部署（构建 + 推送 + 同步 compose + NAS 拉取重启）
+bash deploy-local.sh
+
+# 源码无改动时自动跳过 build，仍会同步 compose 并重启
+bash deploy-local.sh --skip-build
+
+# 走代理加速 pip
+bash deploy-local.sh --build-proxy http://127.0.0.1:7890
+```
+
+脚本在 `.deploy-state` 缓存上次构建的 commit hash，比较 `doubaoime_asr/ Dockerfile pyproject.toml` 三个路径，无改动则跳过 build。
+
+NAS 上的 `.env` 由脚本写入，包含 `REGISTRY` + `IMAGE_TAG` 两项，供 `docker-compose.prod.yml` 插值。凭据 `credentials.json` 落在 NAS 的 `$NAS_DIR/data/`，**首次跑出来后请备份**。
