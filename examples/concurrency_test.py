@@ -20,6 +20,7 @@ import argparse
 import asyncio
 import statistics
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Optional
@@ -36,17 +37,26 @@ SAMPLE_AUDIO_URL = (
 LOCAL_SAMPLE = Path(__file__).resolve().parent.parent / "samples" / "test.wav"
 
 
-def load_audio(path: Optional[str]) -> bytes:
+def load_audio_path(path: Optional[str]) -> Path:
+    """
+    返回音频文件 Path（不读字节）。
+
+    transcribe 看到 bytes 入参会把字节当 raw PCM 用，wav header + 原采样率
+    被当 16k PCM 喂给 Opus → 服务端 InternalError。必须传 Path 走
+    miniaudio.decode_file 解码。
+    """
     if path and Path(path).exists():
-        return Path(path).read_bytes()
+        return Path(path)
     if LOCAL_SAMPLE.exists():
         print(f"使用 repo 内样本 {LOCAL_SAMPLE} …", flush=True)
-        return LOCAL_SAMPLE.read_bytes()
+        return LOCAL_SAMPLE
     print(f"未指定 --audio 且 repo 内无 samples/test.wav，从 GitHub 拉公开样本…", flush=True)
-    return requests.get(SAMPLE_AUDIO_URL, timeout=30).content
+    tmp = Path(tempfile.gettempdir()) / "doubaoime_asr_sample.wav"
+    tmp.write_bytes(requests.get(SAMPLE_AUDIO_URL, timeout=30).content)
+    return tmp
 
 
-async def one_call(idx: int, audio: bytes, cfg: ASRConfig) -> dict:
+async def one_call(idx: int, audio: Path, cfg: ASRConfig) -> dict:
     t0 = time.monotonic()
     try:
         text = await transcribe(audio, config=cfg)
@@ -78,7 +88,7 @@ async def one_call(idx: int, audio: bytes, cfg: ASRConfig) -> dict:
         }
 
 
-async def run(n: int, audio: bytes, credential_path: str, proxy: Optional[str]) -> None:
+async def run(n: int, audio: Path, credential_path: str, proxy: Optional[str]) -> None:
     cfg = ASRConfig(credential_path=credential_path, proxy=proxy)
     # 预热：确保 device_id / token 已经就绪，避免并发时 N 个任务全去注册
     cfg.ensure_credentials()
@@ -129,8 +139,8 @@ def main():
     )
     args = parser.parse_args()
 
-    audio = load_audio(args.audio)
-    print(f"audio size: {len(audio)} bytes")
+    audio = load_audio_path(args.audio)
+    print(f"audio path: {audio} ({audio.stat().st_size} bytes)")
 
     try:
         asyncio.run(run(args.n, audio, args.credential, args.proxy))
