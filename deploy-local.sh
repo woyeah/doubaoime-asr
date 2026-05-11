@@ -94,24 +94,23 @@ cat > "$STATE_FILE" << EOF
 IMAGE_TAG=$IMAGE_TAG
 EOF
 
-# --- 同步 compose 文件到 NAS ---
-# 假设 NAS_DIR 已由用户手动 git clone 创建
-echo "==> Syncing docker-compose.prod.yml to $NAS_HOST:$NAS_DIR ..."
-scp -o StrictHostKeyChecking=no docker-compose.prod.yml "$NAS_USER@$NAS_HOST:$NAS_DIR/docker-compose.prod.yml"
-
-# 把 REGISTRY + IMAGE_TAG 写进 NAS 上的 .env，让 compose 插值时拿到完整 image
-echo "==> Writing $NAS_DIR/.env (REGISTRY + IMAGE_TAG) ..."
-ssh -o StrictHostKeyChecking=no "$NAS_USER@$NAS_HOST" \
-  "printf 'REGISTRY=%s\nIMAGE_TAG=%s\n' '$REGISTRY' '$IMAGE_TAG' > $NAS_DIR/.env"
-
-# --- NAS 拉镜像并重启 ---
-# Synology 上非 root 用户没有 docker.sock 权限，必须 sudo；
-# 又因为 sshd 非交互 shell 不加载 /etc/profile，docker 不在 PATH 里，sudo 内部要显式补 PATH
-# data/ 是 compose volume 的宿主端挂载点，docker 不会自动创建，先 mkdir
-echo "==> Pulling image and restarting container on NAS..."
+# --- NAS 同步源码 + 拉镜像 + 重启 ---
+# 单条 ssh 完成：git pull → 写 .env → mkdir data → docker compose pull/up
+# 设计要点：
+# - compose 文件由 git pull 同步（NAS 上有完整源码，方便手动 ssh 进去看/跑）；本地不再 scp 推
+# - .env 仍由脚本写入：REGISTRY + IMAGE_TAG 是部署期变量，不在 git
+# - sudo sh -c '...' 套整段：Synology 非 root 没 docker.sock 权限
+# - sudo 内部显式补 PATH：sshd 非交互 shell 不加载 /etc/profile
+# - git config safe.directory：避免 sudo 跨 owner 时报 "dubious ownership"
+# - mkdir data：compose volume 宿主端挂载点，docker 不会自动建
+echo "==> Sync source + pull image + restart on NAS..."
 ssh -t -o StrictHostKeyChecking=no "$NAS_USER@$NAS_HOST" \
   "sudo sh -c 'export PATH=/usr/local/bin:/usr/bin:/bin:\$PATH && \
+   git config --global --add safe.directory $NAS_DIR && \
    cd $NAS_DIR && \
+   git fetch origin && \
+   git reset --hard origin/main && \
+   printf \"REGISTRY=%s\nIMAGE_TAG=%s\n\" \"$REGISTRY\" \"$IMAGE_TAG\" > .env && \
    mkdir -p data && \
    docker compose -f docker-compose.prod.yml pull && \
    docker compose -f docker-compose.prod.yml up -d'"
